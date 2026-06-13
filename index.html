@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EPUB Proofreader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 1rem;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #c33;
+        }
+
+        .upload-area {
+            background: white;
+            border: 2px dashed #ccc;
+            border-radius: 1rem;
+            padding: 3rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f9f9ff;
+        }
+
+        .upload-area h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .chapter-selector {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #ddd;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #ccc;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chapter-list {
+            background: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .chapter-btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            background: #f9f9f9;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+
+        .chapter-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .chapter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .chapter-btn.modified::before {
+            content: "✓ ";
+            color: #4caf50;
+        }
+
+        .editor {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+        }
+
+        .editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .suggestions {
+            background: #f9f9f9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .suggestion {
+            background: white;
+            border-left: 4px solid #ffc107;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .suggestion-old {
+            background: #fee;
+            color: #c33;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .suggestion-new {
+            background: #efe;
+            color: #3a3;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .suggestion-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 0.5rem;
+        }
+
+        .suggestion-actions button {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-accept {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-reject {
+            background: #f44336;
+            color: white;
+        }
+
+        .preview {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #ddd;
+            border-radius: 2px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+        }
+
+        .close-btn {
+            background: #ddd;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .change-item {
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+        }
+
+        .change-chapter {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .change-details {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .change-before {
+            background: #fee;
+            color: #c33;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin: 0.5rem 0;
+        }
+
+        .change-after {
+            background: #efe;
+            color: #3a3;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin: 0.5rem 0;
+        }
+
+        .stats-summary {
+            background: #f0f7ff;
+            border: 1px solid #ddd;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-reason {
+            font-size: 0.85rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 EPUB Proofreader</h1>
+            <p>AI-powered editing for your xianxia novel</p>
+        </header>
+
+        <div id="errorContainer"></div>
+
+        <div id="uploadSection">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div style="font-size: 3rem;">📚</div>
+                <h2>Upload EPUB File</h2>
+                <p>Click to select your novel</p>
+                <input type="file" id="fileInput" accept=".epub">
+            </div>
+        </div>
+
+        <div id="selectorSection" class="hidden">
+            <div class="chapter-selector">
+                <h2>📖 Select Chapters</h2>
+                <p id="totalChapters"></p>
+                <div class="form-group">
+                    <label>Start Chapter:</label>
+                    <input type="number" id="startChapter" min="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label>End Chapter:</label>
+                    <input type="number" id="endChapter" min="1" value="100">
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="loadChaptersInRange()">Load Chapters</button>
+                    <button class="btn-secondary" onclick="cancelSelector()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="editorSection" class="hidden">
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-number" id="statTotal">0</div>
+                    <div class="stat-label">Loaded</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="statProcessed">0</div>
+                    <div class="stat-label">Processed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="statAccepted">0</div>
+                    <div class="stat-label">Accepted</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number" id="statModified">0</div>
+                    <div class="stat-label">Modified</div>
+                </div>
+            </div>
+
+            <div id="progressContainer" class="hidden">
+                <p id="progressText">Analyzing chapters...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+
+            <button class="btn-secondary" onclick="showSelector()" style="margin-bottom: 0.5rem;">📚 Load Different Chapters</button>
+            <button class="btn-secondary" onclick="showSummary()" style="margin-bottom: 1rem; margin-left: 0.5rem;">📊 View Changes</button>
+
+            <div class="main-content">
+                <div class="chapter-list" id="chapterList"></div>
+                <div class="editor">
+                    <div class="editor-header">
+                        <h2 id="chapterTitle">Chapter 1</h2>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn-primary btn-small" id="analyzeBtn" onclick="analyzeChapter()">Analyze</button>
+                            <button class="btn-primary btn-small" id="analyzeAllBtn" onclick="analyzeAll()">Analyze All</button>
+                        </div>
+                    </div>
+
+                    <div id="suggestionsContainer" class="suggestions hidden">
+                        <strong id="suggestionCount">0 Suggestions</strong>
+                        <div id="suggestionsList"></div>
+                    </div>
+
+                    <div id="noSuggestions">Click "Analyze" to get suggestions.</div>
+
+                    <div class="preview" id="preview"></div>
+
+                    <div class="nav-buttons">
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn-secondary btn-small" id="prevBtn" onclick="previousChapter()">← Prev</button>
+                            <button class="btn-secondary btn-small" id="nextBtn" onclick="nextChapter()">Next →</button>
+                        </div>
+                        <button class="btn-primary btn-small" onclick="exportAsEPUB()">📥 Export EPUB</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Changes Summary</h2>
+                <button class="close-btn" onclick="closeSummary()">✕</button>
+            </div>
+
+            <div class="stats-summary">
+                <div class="stats-grid" id="summaryStats"></div>
+            </div>
+
+            <div id="changesList"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script>
+        let allChapters = [];
+        let chapters = [];
+        let suggestions = {};
+        let appliedSuggestions = {};
+        let currentChapter = 0;
+        let stats = { total: 0, processed: 0, accepted: 0, modified: 0 };
+        let originalZip = null;
+        let epubMetadata = null;
+
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+
+        async function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                showError('');
+                const JSZip = window.JSZip;
+                const zip = new JSZip();
+                const content = await zip.loadAsync(file);
+                originalZip = content;
+
+                const containerXml = await content.file('META-INF/container.xml')?.async('string');
+                const parser = new DOMParser();
+                const containerDoc = parser.parseFromString(containerXml, 'application/xml');
+                const opfPath = containerDoc.querySelector('rootfile')?.getAttribute('full-path');
+                const opfDir = opfPath.substring(0, opfPath.lastIndexOf('/') + 1);
+                const opfContent = await content.file(opfPath).async('string');
+                const opfDoc = parser.parseFromString(opfContent, 'application/xml');
+
+                epubMetadata = {
+                    opfPath: opfPath,
+                    opfDir: opfDir,
+                    opfContent: opfContent,
+                    opfDoc: opfDoc
+                };
+
+                const manifest = opfDoc.querySelector('manifest');
+                const spine = opfDoc.querySelector('spine');
+                const itemMap = {};
+
+                manifest.querySelectorAll('item').forEach(item => {
+                    itemMap[item.getAttribute('id')] = {
+                        href: item.getAttribute('href'),
+                        type: item.getAttribute('media-type')
+                    };
+                });
+
+                allChapters = [];
+                const spineItems = spine.querySelectorAll('itemref');
+                
+                for (let i = 0; i < spineItems.length; i++) {
+                    const itemId = spineItems[i].getAttribute('idref');
+                    const item = itemMap[itemId];
+                    
+                    if (item?.type.includes('xhtml')) {
+                        allChapters.push({
+                            id: i,
+                            item: item,
+                            opfDir: opfDir,
+                            zipRef: content,
+                            title: `Chapter ${allChapters.length + 1}`
+                        });
+                    }
+                }
+
+                document.getElementById('uploadSection').classList.add('hidden');
+                document.getElementById('selectorSection').classList.remove('hidden');
+                document.getElementById('totalChapters').textContent = `Total chapters: ${allChapters.length}`;
+                document.getElementById('endChapter').max = allChapters.length;
+                document.getElementById('endChapter').value = Math.min(100, allChapters.length);
+
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            }
+        }
+
+        async function loadChaptersInRange() {
+            const start = parseInt(document.getElementById('startChapter').value);
+            const end = parseInt(document.getElementById('endChapter').value);
+
+            if (start < 1 || end > allChapters.length || start > end) {
+                showError(`Invalid range`);
+                return;
+            }
+
+            try {
+                chapters = [];
+                for (let i = start - 1; i < end; i++) {
+                    const meta = allChapters[i];
+                    const filePath = meta.opfDir + meta.item.href;
+                    const html = await meta.zipRef.file(filePath).async('string');
+                    const text = extractText(html).trim();
+
+                    if (text.length > 50) {
+                        chapters.push({
+                            id: i,
+                            title: meta.title,
+                            original: text,
+                            edited: text,
+                            hasChanges: false,
+                            filePath: filePath,
+                            item: meta.item
+                        });
+                    }
+                }
+
+                suggestions = {};
+                appliedSuggestions = {};
+                currentChapter = 0;
+                stats = { total: chapters.length, processed: 0, accepted: 0, modified: 0 };
+
+                document.getElementById('selectorSection').classList.add('hidden');
+                document.getElementById('editorSection').classList.remove('hidden');
+                updateUI();
+
+            } catch (error) {
+                showError(`Error loading chapters: ${error.message}`);
+            }
+        }
+
+        function extractText(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            doc.querySelectorAll('script, style, nav').forEach(el => el.remove());
+            return doc.body.innerText || '';
+        }
+
+        async function analyzeChapter() {
+            const chapter = chapters[currentChapter];
+            if (!chapter) return;
+            await analyzeChapterInternal(currentChapter);
+        }
+
+        async function analyzeAll() {
+            const btn = document.getElementById('analyzeAllBtn');
+            btn.disabled = true;
+            document.getElementById('progressContainer').classList.remove('hidden');
+
+            for (let i = 0; i < chapters.length; i++) {
+                currentChapter = i;
+                updateUI();
+                
+                const progress = Math.round((i / chapters.length) * 100);
+                document.getElementById('progressFill').style.width = progress + '%';
+                document.getElementById('progressText').textContent = `Analyzing chapter ${i + 1}/${chapters.length}...`;
+
+                await analyzeChapterInternal(i);
+            }
+
+            document.getElementById('progressContainer').classList.add('hidden');
+            btn.disabled = false;
+        }
+
+        async function analyzeChapterInternal(idx) {
+            const chapter = chapters[idx];
+            if (!chapter) return;
+
+            try {
+                const chunkSize = 2500;
+                const chunks = [];
+                
+                for (let i = 0; i < chapter.original.length; i += chunkSize) {
+                    chunks.push(chapter.original.substring(i, i + chunkSize));
+                }
+
+                const allSuggestions = [];
+
+                for (const chunk of chunks) {
+                    try {
+                        const response = await fetch('/.netlify/functions/analyze', {
+                            method: 'POST',
+                            body: JSON.stringify({ text: chunk })
+                        });
+
+                        if (!response.ok) {
+                            console.warn('API error:', response.status);
+                            continue;
+                        }
+
+                        const data = await response.json();
+                        if (data.suggestions) {
+                            allSuggestions.push(...data.suggestions);
+                        }
+                    } catch (e) {
+                        console.warn('Fetch error:', e);
+                    }
+                }
+
+                suggestions[idx] = allSuggestions;
+                stats.processed++;
+                updateUI();
+
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            }
+        }
+
+        function applySuggestion(idx) {
+            const sugg = suggestions[currentChapter][idx];
+            const chapter = chapters[currentChapter];
+            
+            if (!appliedSuggestions[currentChapter]) {
+                appliedSuggestions[currentChapter] = [];
+            }
+            
+            appliedSuggestions[currentChapter].push(sugg);
+            chapter.edited = chapter.edited.replace(sugg.original, sugg.suggestion);
+            chapter.hasChanges = true;
+
+            suggestions[currentChapter].splice(idx, 1);
+            stats.accepted++;
+            stats.modified = chapters.filter(ch => ch.hasChanges).length;
+            updateUI();
+        }
+
+        function rejectSuggestion(idx) {
+            suggestions[currentChapter].splice(idx, 1);
+            updateUI();
+        }
+
+        function previousChapter() {
+            if (currentChapter > 0) {
+                currentChapter--;
+                updateUI();
+            }
+        }
+
+        function nextChapter() {
+            if (currentChapter < chapters.length - 1) {
+                currentChapter++;
+                updateUI();
+            }
+        }
+
+        function showSummary() {
+            const modal = document.getElementById('summaryModal');
+            
+            let reasonCounts = {};
+            for (let chIdx in appliedSuggestions) {
+                appliedSuggestions[chIdx].forEach(sugg => {
+                    reasonCounts[sugg.reason] = (reasonCounts[sugg.reason] || 0) + 1;
+                });
+            }
+
+            let statsHtml = `
+                <div class="stat-item">
+                    <div class="stat-value">${stats.accepted}</div>
+                    <div class="stat-reason">Total Changes</div>
+                </div>
+            `;
+
+            for (let reason in reasonCounts) {
+                statsHtml += `
+                    <div class="stat-item">
+                        <div class="stat-value">${reasonCounts[reason]}</div>
+                        <div class="stat-reason">${reason}</div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('summaryStats').innerHTML = statsHtml;
+
+            let changesHtml = '';
+            for (let chIdx in appliedSuggestions) {
+                const chapterIdx = parseInt(chIdx);
+                const chapter = chapters[chapterIdx];
+                
+                changesHtml += `<h3 style="margin-top: 1.5rem; margin-bottom: 1rem; color: #333;">${chapter.title}</h3>`;
+                
+                appliedSuggestions[chIdx].forEach((sugg, idx) => {
+                    changesHtml += `
+                        <div class="change-item">
+                            <div class="change-details"><strong>${sugg.reason}</strong> (${sugg.severity})</div>
+                            <div class="change-before">❌ ${sugg.original}</div>
+                            <div class="change-after">✅ ${sugg.suggestion}</div>
+                        </div>
+                    `;
+                });
+            }
+
+            document.getElementById('changesList').innerHTML = changesHtml || '<p style="color: #999;">No changes applied yet.</p>';
+            modal.classList.add('active');
+        }
+
+        function closeSummary() {
+            document.getElementById('summaryModal').classList.remove('active');
+        }
+
+        async function exportAsEPUB() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>Creating EPUB...';
+
+            try {
+                const JSZip = window.JSZip;
+                const zip = new JSZip();
+
+                for (const [path, file] of Object.entries(originalZip.files)) {
+                    if (!file.dir) {
+                        const content = await file.async('uint8array');
+                        zip.file(path, content);
+                    }
+                }
+
+                for (const chapter of chapters) {
+                    if (chapter.hasChanges) {
+                        const html = await originalZip.file(chapter.filePath).async('string');
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        
+                        const body = doc.querySelector('body');
+                        if (body) {
+                            body.innerHTML = `<p>${chapter.edited.replace(/\n/g, '</p><p>')}</p>`;
+                        }
+
+                        const serializer = new XMLSerializer();
+                        const newHtml = serializer.serializeToString(doc);
+                        zip.file(chapter.filePath, newHtml);
+                    }
+                }
+
+                const epubData = await zip.generateAsync({ type: 'blob' });
+                const url = URL.createObjectURL(epubData);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'edited-novel.epub';
+                a.click();
+
+            } catch (error) {
+                showError(`Error creating EPUB: ${error.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '📥 Export EPUB';
+            }
+        }
+
+        function showSelector() {
+            document.getElementById('editorSection').classList.add('hidden');
+            document.getElementById('selectorSection').classList.remove('hidden');
+        }
+
+        function cancelSelector() {
+            document.getElementById('selectorSection').classList.add('hidden');
+            document.getElementById('editorSection').classList.remove('hidden');
+        }
+
+        function updateUI() {
+            const chapter = chapters[currentChapter];
+            if (!chapter) return;
+
+            document.getElementById('chapterTitle').textContent = chapter.title;
+            document.getElementById('prevBtn').disabled = currentChapter === 0;
+            document.getElementById('nextBtn').disabled = currentChapter === chapters.length - 1;
+
+            const list = document.getElementById('chapterList');
+            list.innerHTML = chapters.map((ch, i) => `
+                <button class="chapter-btn ${i === currentChapter ? 'active' : ''} ${ch.hasChanges ? 'modified' : ''}" 
+                        onclick="currentChapter = ${i}; updateUI()">
+                    ${ch.title}
+                </button>
+            `).join('');
+
+            const sugg = suggestions[currentChapter] || [];
+            const sugContainer = document.getElementById('suggestionsContainer');
+            const noSugg = document.getElementById('noSuggestions');
+
+            if (sugg.length > 0) {
+                sugContainer.classList.remove('hidden');
+                noSugg.classList.add('hidden');
+                document.getElementById('suggestionCount').textContent = `${sugg.length} Suggestions`;
+                document.getElementById('suggestionsList').innerHTML = sugg.map((s, i) => `
+                    <div class="suggestion">
+                        <div><span class="suggestion-old">"${s.original}"</span></div>
+                        <div>↓</div>
+                        <div><span class="suggestion-new">"${s.suggestion}"</span></div>
+                        <div style="font-size: 0.75rem; color: #999;">${s.reason}</div>
+                        <div class="suggestion-actions">
+                            <button class="btn-accept" onclick="applySuggestion(${i})">✓</button>
+                            <button class="btn-reject" onclick="rejectSuggestion(${i})">✗</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                sugContainer.classList.add('hidden');
+                noSugg.classList.remove('hidden');
+            }
+
+            document.getElementById('preview').textContent = chapter.edited.substring(0, 400) + '...';
+
+            document.getElementById('statTotal').textContent = stats.total;
+            document.getElementById('statProcessed').textContent = stats.processed;
+            document.getElementById('statAccepted').textContent = stats.accepted;
+            document.getElementById('statModified').textContent = stats.modified;
+        }
+
+        function showError(msg) {
+            const container = document.getElementById('errorContainer');
+            if (msg) {
+                container.innerHTML = `<div class="error">${msg}</div>`;
+            } else {
+                container.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>
